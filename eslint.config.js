@@ -15,4 +15,8 @@ export default tseslint.config(
       "no-empty": ["error", { allowEmptyCatch: true }],
     },
   },
+  {
+    files: ["scripts/**"],
+    languageOptions: { globals: { console: "readonly" } },
+  },
 );

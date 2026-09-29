@@ -5,9 +5,10 @@
   "type": "module",
   "packageManager": "pnpm@10.34.6",
   "scripts": {
-    "build": "pnpm --filter \"./packages/*\" build && pnpm --filter \"./apps/*\" build",
-    "dev": "pnpm --filter \"./packages/*\" build && pnpm --filter web dev",
-    "typecheck": "tsc -b tsconfig.json",
+    "build": "pnpm repair-tsbuildinfo && pnpm --filter \"./packages/*\" build && pnpm --filter \"./games/*\" build && pnpm --filter \"./apps/*\" build",
+    "dev": "pnpm repair-tsbuildinfo && pnpm --filter \"./packages/*\" build && pnpm --filter \"./games/*\" build && pnpm --filter web dev",
+    "typecheck": "pnpm repair-tsbuildinfo && tsc -b tsconfig.json",
+    "repair-tsbuildinfo": "node scripts/clean-stale-tsbuildinfo.mjs",
     "lint": "eslint .",
     "test": "vitest run",
     "check": "pnpm typecheck && pnpm lint && pnpm test"
