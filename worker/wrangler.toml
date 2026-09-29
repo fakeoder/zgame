@@ -2,6 +2,12 @@ name = "zgame"
 main = "src/index.ts"
 compatibility_date = "2025-09-01"
 
+# 同源托管 web 前端（apps/web 的 vite build 产物），/api/* 与 /healthz 仍走 Worker。
+[assets]
+directory = "../apps/web/dist"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*", "/healthz"]
+
 [observability]
 enabled = true
 
