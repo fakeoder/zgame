@@ -7,9 +7,8 @@
     "build": "tsc -b tsconfig.json",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "db:create": "wrangler d1 create zgame-db",
-    "db:migrate:local": "wrangler d1 migrations apply zgame-db --local",
-    "db:migrate:remote": "wrangler d1 migrations apply zgame-db --remote",
+    "db:local": "wrangler d1 execute zkraft --local --file=migrations/0001_init.sql",
+    "db:remote": "wrangler d1 execute zkraft --remote --file=migrations/0001_init.sql",
     "clean": "rm -rf dist"
   },
   "dependencies": {

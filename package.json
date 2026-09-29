@@ -14,9 +14,8 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test",
     "worker:dev": "pnpm --filter @zgame/worker dev",
     "worker:deploy": "pnpm --filter @zgame/worker run deploy",
-    "worker:db:create": "pnpm --filter @zgame/worker db:create",
-    "worker:migrate:local": "pnpm --filter @zgame/worker db:migrate:local",
-    "worker:migrate:remote": "pnpm --filter @zgame/worker db:migrate:remote"
+    "worker:db:local": "pnpm --filter @zgame/worker db:local",
+    "worker:db:remote": "pnpm --filter @zgame/worker db:remote"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

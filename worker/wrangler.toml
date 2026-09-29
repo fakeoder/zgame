@@ -5,14 +5,13 @@ compatibility_date = "2025-09-01"
 [observability]
 enabled = true
 
-# 首次部署前先执行：
-#   pnpm --filter @zgame/worker db:create
-#   pnpm --filter @zgame/worker db:migrate:remote
-# 然后把返回的 database_id 填到下面。
+# 复用 zenshare/zcalendar/zkraft 的共享 D1 库 zkraft。
+# zgame 的表由 migrations/0001_init.sql 创建（IF NOT EXISTS，不碰其它项目的表）：
+#   pnpm --filter @zgame/worker db:remote
 [[d1_databases]]
 binding = "DB"
-database_name = "zgame-db"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_name = "zkraft"
+database_id = "8af0a86e-6a55-4e71-ab9e-4e53135a7510"
 migrations_dir = "migrations"
 
 [vars]

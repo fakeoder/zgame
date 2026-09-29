@@ -1,5 +1,5 @@
 -- rooms: 房间（设计文档 §29）
-CREATE TABLE rooms (
+CREATE TABLE IF NOT EXISTS rooms (
     id TEXT PRIMARY KEY,
     game_id TEXT NOT NULL,
     host_id TEXT NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE rooms (
 );
 
 -- players: 房间内的玩家（Host 也在其中，role='host'）
-CREATE TABLE players (
+CREATE TABLE IF NOT EXISTS players (
     id TEXT PRIMARY KEY,
     room_id TEXT NOT NULL,
     nickname TEXT,
@@ -23,10 +23,10 @@ CREATE TABLE players (
     last_seen INTEGER
 );
 
-CREATE INDEX idx_players_room ON players(room_id);
+CREATE INDEX IF NOT EXISTS idx_players_room ON players(room_id);
 
 -- sessions: Token（仅存哈希）
-CREATE TABLE sessions (
+CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
     room_id TEXT NOT NULL,
     token_hash TEXT NOT NULL,
@@ -35,10 +35,10 @@ CREATE TABLE sessions (
     created_at INTEGER NOT NULL
 );
 
-CREATE INDEX idx_sessions_room ON sessions(room_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_room ON sessions(room_id);
 
 -- signals: 信令队列（轮询读取，握手后清理）
-CREATE TABLE signals (
+CREATE TABLE IF NOT EXISTS signals (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     room_id TEXT NOT NULL,
     from_role TEXT NOT NULL,
@@ -47,4 +47,4 @@ CREATE TABLE signals (
     created_at INTEGER NOT NULL
 );
 
-CREATE INDEX idx_signals_room ON signals(room_id, id);
+CREATE INDEX IF NOT EXISTS idx_signals_room ON signals(room_id, id);
