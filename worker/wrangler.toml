@@ -1,0 +1,22 @@
+name = "zgame"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+
+[observability]
+enabled = true
+
+# 首次部署前先执行：
+#   pnpm --filter @zgame/worker db:create
+#   pnpm --filter @zgame/worker db:migrate:remote
+# 然后把返回的 database_id 填到下面。
+[[d1_databases]]
+binding = "DB"
+database_name = "zgame-db"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[vars]
+# 部署后改为真实域名（开放问题 O5）
+PUBLIC_ORIGIN = ""
+ROOM_TTL_MS = "1800000"
+HOST_LOSS_TIMEOUT_MS = "45000"

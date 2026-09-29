@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist",
+    "resolveJsonModule": true
+  },
+  "include": ["src", "manifest.json"],
+  "references": [{ "path": "../../packages/game-sdk" }, { "path": "../../packages/protocol" }]
+}

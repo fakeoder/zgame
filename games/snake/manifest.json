@@ -1,0 +1,14 @@
+{
+  "id": "snake",
+  "name": "Snake 双人对战",
+  "version": "1.0.0",
+  "type": "html",
+  "players": 2,
+  "controller": { "type": "generic" },
+  "multiplayer": { "supported": true, "sync": "input" },
+  "tickRate": 20,
+  "inputDelayFrames": 2,
+  "stateHashInterval": 0,
+  "description": "同屏双蛇争食，确定性输入同步。方向键 / WASD 控制，先撑到倒计时结束或比对方多吃。",
+  "icon": "🐍"
+}

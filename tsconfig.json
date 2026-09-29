@@ -1,0 +1,15 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/protocol" },
+    { "path": "./packages/storage" },
+    { "path": "./packages/input" },
+    { "path": "./packages/net" },
+    { "path": "./packages/core" },
+    { "path": "./packages/signaling" },
+    { "path": "./packages/game-sdk" },
+    { "path": "./apps/web" },
+    { "path": "./games/snake" },
+    { "path": "./worker" }
+  ]
+}

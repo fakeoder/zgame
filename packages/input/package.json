@@ -1,0 +1,26 @@
+{
+  "name": "@zgame/input",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./touch": {
+      "types": "./dist/touch.d.ts",
+      "default": "./dist/touch.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@zgame/protocol": "workspace:*"
+  }
+}
