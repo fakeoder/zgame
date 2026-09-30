@@ -12,7 +12,8 @@ run_worker_first = ["/api/*", "/healthz"]
 enabled = true
 
 # 复用 zenshare/zcalendar/zkraft 的共享 D1 库 zkraft。
-# zgame 的表由 migrations/0001_init.sql 创建（IF NOT EXISTS，不碰其它项目的表）：
+# zgame 的表由 Worker 首次 API 请求自动创建（src/schema.ts 读取 migrations/0001_init.sql，
+# 全 IF NOT EXISTS，不碰其它项目的表）。手动兜底：
 #   pnpm --filter @zgame/worker db:remote
 [[d1_databases]]
 binding = "DB"

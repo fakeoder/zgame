@@ -22,6 +22,7 @@ import {
   hashToken,
 } from "./tokens.js";
 import { canTransition, resolveLiveness, resumeStatus, type LivenessConfig } from "./state.js";
+import { ensureSchema } from "./schema.js";
 
 export interface Env {
   DB: D1Database;
@@ -475,6 +476,8 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
   const method = request.method.toUpperCase();
 
   try {
+    await ensureSchema(env.DB);
+
     // POST /api/rooms
     if (segs[1] === "rooms" && segs.length === 2) {
       if (method === "POST") {
