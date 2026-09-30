@@ -53,6 +53,15 @@ export function clearSession(roomId: string): void {
 
 /** 扫码落地：`A8F3K9-<joinToken>` → roomId + token。 */
 export function parseJoinCode(code: string): { roomId: string; token: string } | null {
+  let parsed = splitJoinCode(code);
+  // 兼容旧版本把 roomId 拼两次的链接：`A8F3K9-A8F3K9-<token>` → 剥掉重复前缀
+  for (let i = 0; i < 2 && parsed && parsed.token.startsWith(`${parsed.roomId}-`); i++) {
+    parsed = splitJoinCode(parsed.token);
+  }
+  return parsed;
+}
+
+function splitJoinCode(code: string): { roomId: string; token: string } | null {
   const idx = code.indexOf("-");
   if (idx <= 0 || idx === code.length - 1) return null;
   const roomId = code.slice(0, idx);
@@ -63,6 +72,22 @@ export function parseJoinCode(code: string): { roomId: string; token: string } |
 
 export function joinPath(roomId: string, joinToken: string): string {
   return `/join/${roomId}-${joinToken}`;
+}
+
+/**
+ * 会话里存的 joinUrl → 当前站点的规范邀请链接。
+ * 旧版本存过 roomId 拼两次或跨源的 URL，这里统一修复；无法还原合法 join code 时返回 null。
+ */
+export function inviteUrl(
+  source: { roomId: string; joinUrl?: string },
+  origin: string,
+): string | null {
+  const raw = source.joinUrl ?? "";
+  const idx = raw.indexOf("/join/");
+  if (idx < 0) return null;
+  const parsed = parseJoinCode(raw.slice(idx + "/join/".length));
+  if (!parsed || parsed.roomId !== source.roomId) return null;
+  return `${origin}${joinPath(parsed.roomId, parsed.token)}`;
 }
 
 export interface RoomUiState {

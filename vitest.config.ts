@@ -14,7 +14,12 @@ const sqlText = {
 export default defineConfig({
   plugins: [sqlText],
   test: {
-    include: ["packages/*/test/**/*.test.ts", "worker/test/**/*.test.ts", "games/*/test/**/*.test.ts"],
+    include: [
+      "packages/*/test/**/*.test.ts",
+      "worker/test/**/*.test.ts",
+      "games/*/test/**/*.test.ts",
+      "apps/web/test/**/*.test.ts",
+    ],
     environment: "node",
   },
 });

@@ -3,7 +3,7 @@ import { getRegisteredGame } from "@zgame/game-sdk";
 import type { PlayerSnapshot, RoomStatus } from "@zgame/protocol";
 import type { WebRTCTransport } from "@zgame/net";
 import type { Router } from "../router.js";
-import { clearSession, loadSession, statusLabel } from "../session.js";
+import { clearSession, inviteUrl, loadSession, statusLabel } from "../session.js";
 import { button, copyText, el, toast } from "../ui.js";
 import { GameRuntime } from "../runtime.js";
 import { RoomConnection, type ConnectionPhase } from "../connection.js";
@@ -63,33 +63,42 @@ export async function renderRoomPage(
   if (isHost) {
     invitePanel = el("div", { class: "panel" });
     invitePanel.append(el("h2", {}, ["邀请玩家"]));
-    const qrWrap = el("div", { class: "qr-wrap" });
-    const qrBox = el("div", { class: "qr-box" });
-    const qrImg = document.createElement("img");
-    qrImg.alt = "邀请二维码";
-    qrBox.append(qrImg);
-    const side = el("div", { class: "qr-side" });
-    const url = session.joinUrl ?? `${window.location.origin}/join/${roomId}`;
-    const urlBox = el("div", { class: "url-box" }, [url]);
-    const copyBtn = button("复制邀请链接", async () => {
-      const ok = await copyText(url);
-      toast(ok ? "已复制" : "复制失败，请手动选择链接");
-    });
-    side.append(
-      el("p", { class: "hint" }, ["让玩家用手机扫码，或把链接发给对方。玩家加入后这里会显示列表。"]),
-      urlBox,
-      copyBtn,
-    );
-    qrWrap.append(qrBox, side);
-    invitePanel.append(qrWrap);
-    void QRCode.toDataURL(url, { margin: 1, width: 360, color: { dark: "#0b1020", light: "#ffffff" } })
-      .then((dataUrl) => {
-        qrImg.src = dataUrl;
-      })
-      .catch((err) => {
-        console.error(err);
-        qrBox.replaceWith(el("p", { class: "hint" }, ["二维码生成失败，可直接复制下方链接。"]));
+    // 拿不到合法 join code 就不要展示坏链接（扫出来只会是 invalid join token）
+    const url = inviteUrl(session, window.location.origin);
+    if (url) {
+      const qrWrap = el("div", { class: "qr-wrap" });
+      const qrBox = el("div", { class: "qr-box" });
+      const qrImg = document.createElement("img");
+      qrImg.alt = "邀请二维码";
+      qrBox.append(qrImg);
+      const side = el("div", { class: "qr-side" });
+      const urlBox = el("div", { class: "url-box" }, [url]);
+      const copyBtn = button("复制邀请链接", async () => {
+        const ok = await copyText(url);
+        toast(ok ? "已复制" : "复制失败，请手动选择链接");
       });
+      side.append(
+        el("p", { class: "hint" }, ["让玩家用手机扫码，或把链接发给对方。玩家加入后这里会显示列表。"]),
+        urlBox,
+        copyBtn,
+      );
+      qrWrap.append(qrBox, side);
+      invitePanel.append(qrWrap);
+      void QRCode.toDataURL(url, { margin: 1, width: 360, color: { dark: "#0b1020", light: "#ffffff" } })
+        .then((dataUrl) => {
+          qrImg.src = dataUrl;
+        })
+        .catch((err) => {
+          console.error(err);
+          qrBox.replaceWith(el("p", { class: "hint" }, ["二维码生成失败，可直接复制下方链接。"]));
+        });
+    } else {
+      invitePanel.append(
+        el("p", { class: "hint" }, [
+          "本机保存的邀请链接不可用（可能来自旧版本会话）。请关闭房间后重新创建，以生成新的二维码。",
+        ]),
+      );
+    }
     body.append(invitePanel);
   }
 

@@ -2,7 +2,7 @@ import { getRegisteredGame } from "@zgame/game-sdk";
 import type { RoomMode } from "@zgame/protocol";
 import { RoomApiClient } from "@zgame/signaling";
 import type { Router } from "../router.js";
-import { deviceId, joinPath, saveSession } from "../session.js";
+import { deviceId, inviteUrl, saveSession } from "../session.js";
 import { button, el, field, select, toast } from "../ui.js";
 import { GameRuntime } from "../runtime.js";
 
@@ -118,9 +118,8 @@ export async function renderGamePage(
       const api = new RoomApiClient();
       const mode = (modeSelect.value === "nearby" ? "nearby" : "remote") as RoomMode;
       const res = await api.createRoom({ gameId: m.id, mode }, deviceId());
-      // Worker 返回的 joinUrl 以请求源为准；统一改写成当前站点，扫码后可直接打开
-      const code = res.joinUrl.split("/join/")[1] ?? "";
-      const joinUrl = code ? `${window.location.origin}${joinPath(res.roomId, code)}` : res.joinUrl;
+      // Worker 返回的 joinUrl 以请求源为准；统一改写成当前站点（顺带修复旧版本的重复 roomId）
+      const joinUrl = inviteUrl(res, window.location.origin) ?? res.joinUrl;
       saveSession({
         roomId: res.roomId,
         token: res.hostToken,

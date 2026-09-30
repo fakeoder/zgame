@@ -75,7 +75,14 @@ export interface AuthContext {
   profile: RoomProfile;
 }
 
+export interface AuthOptions {
+  /** 允许过期的 player 会话通过（目前仅用于 leave，让玩家能清掉自己的残留行）。 */
+  allowExpired?: boolean;
+}
+
 const ROOM_ID_RE = /^[A-Z0-9]{4,12}$/;
+/** MVP 固定 2 人（Host + 1 Client）：除房主外可容纳的玩家数（同步引擎只有 player 1 / player 2）。 */
+const MAX_GUEST_PLAYERS = 1;
 const SIGNAL_CLEANUP_AGE_MS = 5 * 60 * 1000;
 const SYNC_PAGE_LIMIT = 50;
 
@@ -175,18 +182,38 @@ export class RoomService {
     return { row: { ...row, status: next, updated_at: now, resume_status: resume }, changed: true };
   }
 
+  /** 只数会话仍然有效的玩家：过期残留行不算占用（否则房间会“永远满员”）。 */
   async #countPlayers(roomId: string): Promise<number> {
     const row = await this.#db
-      .prepare("SELECT COUNT(*) AS n FROM players WHERE room_id = ? AND role = 'player'")
-      .bind(roomId)
+      .prepare(
+        "SELECT COUNT(*) AS n FROM players AS p WHERE p.room_id = ? AND p.role = 'player' AND EXISTS (SELECT 1 FROM sessions AS s WHERE s.id = p.id AND s.expires_at > ?)",
+      )
+      .bind(roomId, Date.now())
       .first<{ n: number }>();
     return row?.n ?? 0;
   }
 
+  /** 回收：删除过期的 join/player 会话，以及因此失去会话的残留 player 行。 */
+  async #gcExpired(roomId: string, now: number): Promise<void> {
+    await this.#db.batch([
+      this.#db
+        .prepare("DELETE FROM sessions WHERE room_id = ? AND role <> 'host' AND expires_at <= ?")
+        .bind(roomId, now),
+      this.#db
+        .prepare(
+          "DELETE FROM players WHERE room_id = ? AND role = 'player' AND NOT EXISTS (SELECT 1 FROM sessions WHERE sessions.id = players.id)",
+        )
+        .bind(roomId),
+    ]);
+  }
+
+  /** 会话已过期的玩家不再出现在列表里（与 #countPlayers 的口径一致）。 */
   async #listPlayers(roomId: string): Promise<PlayerSnapshot[]> {
     const res = await this.#db
-      .prepare("SELECT * FROM players WHERE room_id = ? ORDER BY joined_at ASC")
-      .bind(roomId)
+      .prepare(
+        "SELECT * FROM players AS p WHERE p.room_id = ? AND EXISTS (SELECT 1 FROM sessions AS s WHERE s.id = p.id AND s.expires_at > ?) ORDER BY p.joined_at ASC",
+      )
+      .bind(roomId, Date.now())
       .all<PlayerRow>();
     return (res.results ?? []).map((p) => ({
       id: p.id,
@@ -197,15 +224,23 @@ export class RoomService {
     }));
   }
 
-  async auth(roomId: string, token: string | null): Promise<AuthContext> {
+  /**
+   * Bearer 鉴权。`join` 角色的邀请 token 不可用于任何端点（否则拿到邀请链接的人
+   * 就能以 player 身份注入信令，甚至 `leave` 掉邀请会话、让二维码永久失效）。
+   */
+  async auth(roomId: string, token: string | null, opts: AuthOptions = {}): Promise<AuthContext> {
     if (!token) throw new ApiError("FORBIDDEN", 401, "missing token");
     const hash = await hashToken(token);
     const session = await this.#db
-      .prepare("SELECT * FROM sessions WHERE room_id = ? AND token_hash = ?")
+      .prepare("SELECT * FROM sessions WHERE room_id = ? AND token_hash = ? AND role <> 'join'")
       .bind(roomId, hash)
       .first<SessionRow>();
     if (!session) throw new ApiError("FORBIDDEN", 403, "invalid token");
-    if (session.expires_at <= Date.now()) throw new ApiError("EXPIRED", 403, "token expired");
+    // 过期的玩家 token 仍可用于 leave：让玩家能自行清理残留，房间才不会永远满员
+    const leaveExpired = opts.allowExpired === true && session.role === "player";
+    if (session.expires_at <= Date.now() && !leaveExpired) {
+      throw new ApiError("EXPIRED", 403, "token expired");
+    }
     const role = session.role === "host" ? "host" : "player";
     const players = await this.#listPlayers(roomId);
     const profile = players.find((p) => p.id === session.id)?.profile ?? "player";
@@ -291,28 +326,35 @@ export class RoomService {
     if (!session) throw new ApiError("FORBIDDEN", 403, "invalid join token");
     if (session.expires_at <= Date.now()) throw new ApiError("EXPIRED", 403, "join token expired");
 
-    // D4：MVP 固定 2 人（Host + 1 Client），同步引擎只有 player 1 / player 2
-    const count = await this.#countPlayers(roomId);
-    if (count >= 1) throw new ApiError("ROOM_FULL", 409, "room full (MVP 固定 2 人)");
-
     const now = Date.now();
+    // 回收过期残留（否则过期玩家行会把房间永久占满）
+    await this.#gcExpired(roomId, now);
+
     const playerToken = generateToken();
     const playerId = generateToken(16);
+    // 容量判定与写入必须在同一个事务里完成：先 COUNT 再 INSERT 的写法在并发 join 下会双双通过。
+    // 会话行由 EXISTS 守卫，保证它只在 player 行确实插入成功时才落库（不留无会话的残留）。
     await this.#db.batch([
       this.#db
         .prepare(
-          "INSERT INTO players (id, room_id, nickname, role, profile, joined_at, last_seen) VALUES (?, ?, ?, 'player', ?, ?, ?)",
+          "INSERT INTO players (id, room_id, nickname, role, profile, joined_at, last_seen) SELECT ?, ?, ?, 'player', ?, ?, ? WHERE (SELECT COUNT(*) FROM players AS p WHERE p.room_id = ? AND p.role = 'player' AND EXISTS (SELECT 1 FROM sessions AS s WHERE s.id = p.id AND s.expires_at > ?)) < ?",
         )
-        .bind(playerId, roomId, nickname, profile, now, now),
+        .bind(playerId, roomId, nickname, profile, now, now, roomId, now, MAX_GUEST_PLAYERS),
       this.#db
         .prepare(
-          "INSERT INTO sessions (id, room_id, token_hash, role, expires_at, created_at) VALUES (?, ?, ?, 'player', ?, ?)",
+          "INSERT INTO sessions (id, room_id, token_hash, role, expires_at, created_at) SELECT ?, ?, ?, 'player', ?, ? WHERE EXISTS (SELECT 1 FROM players WHERE id = ?)",
         )
-        .bind(playerId, roomId, await hashToken(playerToken), session.expires_at, now),
+        .bind(playerId, roomId, await hashToken(playerToken), session.expires_at, now, playerId),
       this.#db
         .prepare("UPDATE rooms SET updated_at = ? WHERE id = ?")
         .bind(now, roomId),
     ]);
+
+    const created = await this.#db
+      .prepare("SELECT id FROM players WHERE id = ?")
+      .bind(playerId)
+      .first<{ id: string }>();
+    if (!created) throw new ApiError("ROOM_FULL", 409, "room full (MVP 固定 2 人)");
 
     return {
       playerToken,
@@ -525,7 +567,7 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
     }
 
     const token = bearer(request);
-    const auth = await service.auth(roomId, token);
+    const auth = await service.auth(roomId, token, { allowExpired: action === "leave" });
 
     // POST /api/rooms/:id/heartbeat
     if (action === "heartbeat" && method === "POST") {
